@@ -1,0 +1,38 @@
+# so hgetall/hset/hdel/hlen all behave correctly without hitting Redis.
+# ─────────────────────────────────────────────────────────────────────────────
+def _make_redis_mock(initial_data=None):
+    """
+    Returns a MagicMock that behaves like a Redis hash client.
+    Supports: ping, hgetall, hset, hdel, hlen.
+    Uses a real dict internally so all operations work correctly.
+    """
+    store = dict(initial_data or {})
+ 
+    mock_r         = MagicMock()
+    mock_r.ping.return_value = True
+ 
+    # hgetall returns the whole store
+    mock_r.hgetall.side_effect = lambda key: dict(store)
+ 
+    # hset stores a field
+    mock_r.hset.side_effect = lambda key, field=None, value=None, **kw: (
+        store.update({field: value}) or 1
+    )
+ 
+    # hdel removes fields and returns count removed
+    def _hdel(key, *fields):
+        removed = 0
+        for f in fields:
+            if f in store:
+                del store[f]
+                removed += 1
+        return removed
+    mock_r.hdel.side_effect = _hdel
+ 
+    # hlen returns current length
+    mock_r.hlen.side_effect = lambda key: len(store)
+ 
+    # expose store for assertions
+    mock_r._store = store
+ 
+    return mock_r
