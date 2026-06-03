@@ -1,0 +1,24 @@
+fake_eastern         = MagicMock()
+        fake_eastern.hour    = eastern_hour
+        fake_eastern.minute  = eastern_minute
+        fake_eastern.strftime.return_value = (
+            f"{eastern_hour:02d}:{eastern_minute:02d} EDT"
+        )
+ 
+        _real_datetime = datetime
+ 
+        def _smart_now(tz=None):
+            # if called with a ZoneInfo timezone → return fake eastern time
+            # if called with UTC or no arg → return real datetime (needed
+            # for snapshot_time > current_time comparison in lambda_handler)
+            if tz is not None and str(type(tz)) == "<class 'zoneinfo.ZoneInfo'>":
+                return fake_eastern
+            return _real_datetime.now(tz) if tz else _real_datetime.now(timezone.utc)
+ 
+        mock_dt             = MagicMock(wraps=_real_datetime)
+        mock_dt.now         = MagicMock(side_effect=_smart_now)
+        mock_dt.now.return_value = _real_datetime.now(timezone.utc)
+        mocker.patch("src.snapshot.datetime", mock_dt)
+ 
+        # reset module globals
+        import src.snapshot
