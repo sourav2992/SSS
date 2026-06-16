@@ -133,9 +133,6 @@ def mock_boto3_client(mocker):
     return mock_client
 
 
-# ═════════════════════════════════════════════════════════════════════════════
-# Shared helpers
-# ═════════════════════════════════════════════════════════════════════════════
 def _build_mock_redis():
     """Redis hash mock with two stale agents (lastUpdate=0 => older than any
     stale cutoff => flagged LAG_STATUS=True)."""
@@ -214,9 +211,6 @@ def _build_redis_with_active_and_stale():
     )
 
 
-# ═════════════════════════════════════════════════════════════════════════════
-# Happy path
-# ═════════════════════════════════════════════════════════════════════════════
 @responses.activate
 def test_snapshot(mocker, mock_boto3_client):
     """Happy path: handler runs end-to-end and returns success."""
@@ -240,9 +234,6 @@ def test_snapshot(mocker, mock_boto3_client):
     assert resp["message"] == "success"
 
 
-# ═════════════════════════════════════════════════════════════════════════════
-# Failure path — Postgres write fails and the exception propagates out.
-# ═════════════════════════════════════════════════════════════════════════════
 @responses.activate
 def test_snapshot_failures(mocker, mock_boto3_client):
     """Failure path: when the Postgres write fails, send_to_postgres re-raises
@@ -270,9 +261,6 @@ def test_snapshot_failures(mocker, mock_boto3_client):
             lambda_handler(_build_event(), context=None)
 
 
-# ═════════════════════════════════════════════════════════════════════════════
-# Inactive-region path — handler short-circuits and does NOT run.
-# ═════════════════════════════════════════════════════════════════════════════
 @responses.activate
 def test_snapshot_inactive_region(mocker, mock_boto3_client):
     set_env_vars()
@@ -297,10 +285,6 @@ def test_snapshot_inactive_region(mocker, mock_boto3_client):
     assert resp["message"] == "stopped_run_not_active_region"
 
 
-# ═════════════════════════════════════════════════════════════════════════════
-# COVERAGE: active + stale branches of process_agent_state in one run.
-# Covers the lag_status=False (active) AND lag_status=True (stale) branches.
-# ═════════════════════════════════════════════════════════════════════════════
 @responses.activate
 def test_snapshot_active_and_stale_branches(mocker, mock_boto3_client):
     set_env_vars()
@@ -335,10 +319,6 @@ def test_snapshot_active_and_stale_branches(mocker, mock_boto3_client):
     assert lag_by_eid["STALE_EID"] is True     # stale branch covered
 
 
-# ═════════════════════════════════════════════════════════════════════════════
-# COVERAGE: EID_LOG_CAP overflow branch — >50 stale agents triggers the
-# "(+N more)" suffix path in the summary log.
-# ═════════════════════════════════════════════════════════════════════════════
 @responses.activate
 def test_snapshot_eid_log_cap_overflow(mocker, mock_boto3_client):
     set_env_vars()
